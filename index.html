@@ -3,89 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>MONTE SJDM Transit</title>
+    <title>MONTE - SJDM Travel Guide</title>
+    
     <link rel="manifest" href="manifest.json">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+    
     <style>
-        body { margin: 0; padding: 0; font-family: sans-serif; }
-        #map { height: 100vh; width: 100vw; }
-        .legend {
-            position: absolute; bottom: 30px; left: 10px; z-index: 1000;
-            background: white; padding: 12px; border-radius: 8px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        body { margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        #map { height: 100vh; width: 100vw; z-index: 1; }
+
+        /* Sidebar Styling */
+        .sidebar {
+            height: 100%; width: 0; position: fixed; z-index: 2000;
+            top: 0; left: 0; background-color: white; overflow-x: hidden;
+            transition: 0.3s; padding-top: 60px; box-shadow: 2px 0 10px rgba(0,0,0,0.2);
         }
+        .sidebar-content { padding: 20px; }
+        .sidebar a { padding: 10px; text-decoration: none; font-size: 18px; color: #333; display: block; }
+        .closebtn { position: absolute; top: 10px; right: 25px; font-size: 36px !important; cursor: pointer; }
+
+        /* Trip Planner UI (Top) */
+        .search-container {
+            position: absolute; top: 15px; left: 15px; right: 15px;
+            z-index: 1000; background: white; padding: 15px;
+            border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        .input-group { display: flex; flex-direction: column; gap: 8px; margin-bottom: 10px; }
+        input {
+            padding: 12px; border: 1px solid #ddd; border-radius: 8px;
+            font-size: 14px; outline: none;
+        }
+        input:focus { border-color: #2196F3; }
+        
+        .btn-plan {
+            background: #2196F3; color: white; border: none; padding: 10px;
+            border-radius: 8px; font-weight: bold; cursor: pointer;
+        }
+
+        /* Menu Button */
+        .menu-btn {
+            position: absolute; bottom: 30px; right: 20px; z-index: 1000;
+            background: #2196F3; color: white; padding: 15px;
+            border-radius: 50%; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            cursor: pointer; display: flex; align-items: center;
+        }
+
+        /* Settings Toggle */
+        .setting-item { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
     </style>
 </head>
 <body>
 
+<div id="mySidebar" class="sidebar">
+    <span class="material-icons closebtn" onclick="closeNav()">close</span>
+    <div class="sidebar-content">
+        <h3>Settings</h3>
+        <div class="setting-item">
+            <span>Show Traffic</span>
+            <input type="checkbox" id="trafficToggle">
+        </div>
+        <div class="setting-item">
+            <span>Night Mode</span>
+            <input type="checkbox" id="darkMode">
+        </div>
+        <hr>
+        <a href="#"><span class="material-icons">info</span> About MONTE</a>
+        <a href="#"><span class="material-icons">help</span> Help Center</a>
+    </div>
+</div>
+
+<div class="search-container">
+    <div class="input-group">
+        <input type="text" id="startLoc" placeholder="Where are you from? (e.g. Muzon)">
+        <input type="text" id="endLoc" placeholder="Where do you want to go? (e.g. Starmall)">
+    </div>
+    <button class="btn-plan" onclick="planTrip()">Find Routes</button>
+</div>
+
 <div id="map"></div>
-<div class="legend">
-    <strong>MONTE SJDM</strong><br>
-    <small>Tap a route for fare info</small>
+
+<div class="menu-btn" onclick="openNav()">
+    <span class="material-icons">settings</span>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script>
-    // Map centered near Muzon/Tungko area
-    const map = L.map('map').setView([14.8100, 121.0500], 14);
 
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
+<script>
+    // 1. Initialize Map
+    const map = L.map('map', { zoomControl: false }).setView([14.81, 121.05], 14);
+    
+    const baseLayer = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '© MONTE Project'
     }).addTo(map);
 
-    // Loads your routes.geojson file
-    fetch('GROTTO TERMINAL.geojson')
-        .then(response => response.json())
+    // 2. Sidebar Functions
+    function openNav() { document.getElementById("mySidebar").style.width = "280px"; }
+    function closeNav() { document.getElementById("mySidebar").style.width = "0"; }
+
+    // 3. Load the Route (Muzon - Starmall)
+    fetch('MUZON - STARMALL MODERN JEEP.geojson')
+        .then(res => res.json())
         .then(data => {
-            L.geoJSON(data, {
-                style: { color: '#007bff', weight: 4, opacity: 0.8 },
-                onEachFeature: function (feature, layer) {
-                    if (feature.properties && feature.properties.routeName) {
-                        layer.bindPopup(`<strong>Route:</strong> ${feature.properties.routeName}<br><strong>Fare:</strong> ₱${feature.properties.fare || '12.00'}`);
-                    }
+            const route = L.geoJSON(data, {
+                style: { color: '#2196F3', weight: 6, opacity: 0.8 },
+                onEachFeature: (f, l) => {
+                    l.bindPopup("<b>Modern Jeepney</b><br>Fare: ₱15.00");
                 }
             }).addTo(map);
-        })
-        .catch(err => console.error("Error loading GeoJSON:", err));
+        });
 
-    // Register Service Worker for PWA/Offline support
-    if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.register('sw.js');
+    // 4. Trip Planning Simulation
+    function planTrip() {
+        const from = document.getElementById('startLoc').value;
+        const to = document.getElementById('endLoc').value;
+        
+        if(from && to) {
+            alert(`Planning trip from ${from} to ${to}...\nSuggested: Take the Muzon-Starmall Modern Jeepney.`);
+            // In a real app, you would filter the GeoJSON here
+        } else {
+            alert("Please enter both locations.");
+        }
     }
 </script>
+
 </body>
 </html>
-
-{
-  "name": "MONTE SJDM Transport Map",
-  "short_name": "MONTE",
-  "start_url": "./index.html",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#007bff",
-  "description": "Digitized paratransit routes for San Jose del Monte.",
-  "icons": [
-    {
-      "src": "https://via.placeholder.com/192/007bff/ffffff?text=M",
-      "sizes": "192x192",
-      "type": "image/png"
-    },
-    {
-      "src": "https://via.placeholder.com/512/007bff/ffffff?text=MONTE",
-      "sizes": "512x512",
-      "type": "image/png"
-    }
-  ]
-}
-
-
-const cacheName = 'monte-v1';
-const assets = ['./', './index.html', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css', 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'];
-
-self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(cacheName).then((cache) => cache.addAll(assets)));
-});
-
-self.addEventListener('fetch', (e) => {
-  e.respondWith(caches.match(e.request).then((res) => res || fetch(e.request)));
-});
