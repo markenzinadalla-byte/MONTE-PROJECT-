@@ -1,0 +1,7 @@
+{
+"type": "FeatureCollection",
+"name": "GROTTO TERMINALkmz",
+"features": [
+{ "type": "Feature", "properties": { "Name": "GROTTO TERMINAL" }, "geometry": { "type": "Polygon", "coordinates": [ [ [ 121.0670237, 14.7917979, 0.0 ], [ 121.0666591, 14.7917484, 0.0 ], [ 121.0666373, 14.7915215, 0.0 ], [ 121.0670573, 14.7915347, 0.0 ], [ 121.0670237, 14.7917979, 0.0 ] ] ] } }
+]
+}
