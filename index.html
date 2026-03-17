@@ -3,180 +3,158 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>MONTE Transit v3.0</title>
+    <title>MONTE Transit v5.0 | Auto-Routing</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+    
     <style>
-        :root { --google-blue: #1a73e8; --glass: rgba(255, 255, 255, 0.95); }
+        :root { --google-blue: #1a73e8; }
         body { margin: 0; padding: 0; font-family: 'Google Sans', sans-serif; background: #f8f9fa; overflow: hidden; }
         #map { height: 100vh; width: 100vw; z-index: 1; }
 
-        /* Floating Search Card */
+        /* Search Card UI */
         .search-card {
             position: absolute; top: 12px; left: 12px; right: 12px;
-            max-width: 400px; z-index: 1000; background: var(--glass);
-            backdrop-filter: blur(10px); border-radius: 16px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 8px 16px;
-            transition: 0.3s;
+            max-width: 400px; z-index: 2000; background: white;
+            border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            padding: 8px 12px;
         }
-
-        .search-row { display: flex; align-items: center; padding: 4px 0; }
-        .search-row input { border: none; background: transparent; width: 100%; padding: 10px; font-size: 16px; outline: none; }
-        .divider { height: 1px; background: #eee; margin: 4px 0; }
-
-        /* Sidebar Navigation */
-        .sidebar {
-            height: 100%; width: 0; position: fixed; z-index: 3000;
-            top: 0; left: 0; background: white;
-            transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: 5px 0 15px rgba(0,0,0,0.1); overflow-x: hidden;
-        }
-        .sidebar-header { padding: 30px 20px; background: #f1f3f4; display: flex; justify-content: space-between; align-items: center; }
-        .sidebar-content { padding: 20px; }
-        .nav-item { display: flex; align-items: center; gap: 15px; padding: 15px 0; border-bottom: 1px solid #f1f3f4; color: #3c4043; cursor: pointer; }
-
-        /* Settings Toggle UI */
-        .toggle-row { display: flex; justify-content: space-between; align-items: center; width: 100%; }
+        .search-row { display: flex; align-items: center; }
+        .search-row input { border: none; background: transparent; width: 100%; padding: 12px; font-size: 16px; outline: none; }
         
+        .autocomplete-results {
+            background: white; border-top: 1px solid #eee;
+            max-height: 200px; overflow-y: auto; display: none;
+            border-radius: 0 0 12px 12px;
+        }
+        .result-item { padding: 12px 15px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .result-item:hover { background: #f1f3f4; }
+
         /* Bottom Panel */
         #fare-panel {
             position: fixed; bottom: -300px; left: 0; right: 0;
-            background: white; z-index: 2000; border-radius: 24px 24px 0 0;
+            background: white; z-index: 2500; border-radius: 24px 24px 0 0;
             padding: 24px; box-shadow: 0 -5px 20px rgba(0,0,0,0.1); transition: 0.4s;
         }
         .active-panel { bottom: 0 !important; }
-
-        .btn-go { width: 100%; background: var(--google-blue); color: white; border: none; border-radius: 12px; padding: 12px; font-weight: bold; margin-top: 10px; }
+        .btn-go { width: 100%; background: var(--google-blue); color: white; border: none; border-radius: 8px; padding: 12px; font-weight: bold; margin-top: 8px; }
+        
+        /* Hide the routing instruction box */
+        .leaflet-routing-container { display: none; }
     </style>
 </head>
 <body>
 
-<div id="sideNav" class="sidebar">
-    <div class="sidebar-header">
-        <div>
-            <h2 style="margin:0; color:var(--google-blue)">MONTE Settings</h2>
-            <small>SJDM Transit Guide v3.0</small>
-        </div>
-        <span class="material-icons-round" onclick="closeNav()" style="cursor:pointer">close</span>
-    </div>
-    <div class="sidebar-content">
-        <div class="nav-item" onclick="toggleTerminals()">
-            <div class="toggle-row">
-                <span><span class="material-icons-round" style="vertical-align:middle; margin-right:10px">location_on</span>Show Tricycle Terminals</span>
-                <input type="checkbox" id="termCheck" checked>
-            </div>
-        </div>
-        <div class="nav-item">
-            <div class="toggle-row">
-                <span><span class="material-icons-round" style="vertical-align:middle; margin-right:10px">dark_mode</span>Night Mode</span>
-                <input type="checkbox">
-            </div>
-        </div>
-        <div class="nav-item"><span class="material-icons-round">info</span>About Project MONTE</div>
-    </div>
-</div>
-
-<div class="search-card" id="searchBox">
+<div class="search-card">
     <div class="search-row">
-        <span class="material-icons-round" style="color:#5f6368; cursor:pointer" onclick="openNav()">menu</span>
-        <input type="text" id="fromLoc" list="terminalList" placeholder="Current Location">
+        <span class="material-icons-round" style="color:#5f6368">trip_origin</span>
+        <input type="text" id="startLoc" placeholder="From..." oninput="handleSearch(this, 'start')">
     </div>
-    <div class="divider"></div>
+    <div style="height:1px; background:#eee; margin:4px 0"></div>
     <div class="search-row">
         <span class="material-icons-round" style="color:var(--google-blue)">place</span>
-        <input type="text" id="toLoc" list="terminalList" placeholder="Where to?">
+        <input type="text" id="toLoc" placeholder="To..." oninput="handleSearch(this, 'end')">
     </div>
-    <button class="btn-go" onclick="calculateRoute()">SEARCH ROUTE</button>
+    <div id="resultsList" class="autocomplete-results"></div>
+    <button class="btn-go" onclick="triggerRouting()">GET AUTOMATIC ROUTE</button>
 </div>
-
-<datalist id="terminalList"></datalist>
 
 <div id="fare-panel">
     <div style="width: 40px; height: 4px; background: #dadce0; margin: 0 auto 15px; border-radius: 2px;"></div>
-    <h3 id="res-title" style="margin:0">Route Found</h3>
-    <p id="res-sub" style="color:#5f6368"></p>
-    <div style="display:flex; gap:20px; margin-top:15px; background:#f8f9fa; padding:15px; border-radius:12px;">
-        <div style="text-align:center; flex:1"><b>REGULAR</b><br><span style="font-size:22px; color:#188038">₱15.00</span></div>
-        <div style="text-align:center; flex:1"><b>STUDENT</b><br><span style="font-size:22px; color:#188038">₱12.00</span></div>
+    <h3 id="res-title">Routing Complete</h3>
+    <p id="res-sub" style="color:#5f6368; font-size:14px">Snapped to available roads.</p>
+    <div style="display:flex; gap:20px; margin-top:15px; background:#e8f0fe; padding:15px; border-radius:12px;">
+        <div style="text-align:center; flex:1"><b>EST. FARE</b><br><span id="fare-val" style="font-size:22px; color:#1a73e8">₱15.00</span></div>
+        <div style="text-align:center; flex:1"><b>DISTANCE</b><br><span id="dist-val" style="font-size:22px; color:#1a73e8">-- km</span></div>
     </div>
-    <button onclick="closePanel()" style="width:100%; margin-top:15px; padding:10px; border:none; background:#eee; border-radius:8px;">Dismiss</button>
+    <button onclick="closePanel()" style="width:100%; margin-top:15px; padding:10px; border:none; background:#eee; border-radius:8px;">Clear Route</button>
 </div>
 
 <div id="map"></div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
 <script>
     const map = L.map('map', { zoomControl: false }).setView([14.81, 121.05], 14);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png').addTo(map);
 
-    let jeepData, termData, pathLayer, termLayer;
+    let terminalData = [];
+    let routingControl = null;
+    let termLayer;
 
-    // 1. Fetch Data
-    fetch('MUZON - STARMALL MODERN JEEP.geojson').then(r => r.json()).then(d => jeepData = d);
-    
-    fetch('Tricycle Terminal Points.geojson').then(r => r.json()).then(data => {
-        termData = data;
-        const list = document.getElementById('terminalList');
-        termLayer = L.geoJSON(data, {
-            pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 7, fillColor: "#ff9800", color: "#fff", weight: 2, fillOpacity: 0.9 }),
-            onEachFeature: (f, l) => {
-                const name = f.properties.name || f.properties.Name;
-                const opt = document.createElement('option');
-                opt.value = name;
-                list.appendChild(opt);
-                l.bindPopup("<b>Terminal:</b> " + name);
-            }
-        }).addTo(map);
-    });
-
-    // 2. Sidebar Functions
-    function openNav() { document.getElementById("sideNav").style.width = "300px"; }
-    function closeNav() { document.getElementById("sideNav").style.width = "0"; }
-
-    // 3. Search & UI Logic
-    function calculateRoute() {
-        const from = document.getElementById('fromLoc').value.toLowerCase();
-        const to = document.getElementById('toLoc').value.toLowerCase();
-        const panel = document.getElementById('fare-panel');
-
-        if (pathLayer) map.removeLayer(pathLayer);
-
-        // Check for Jeepney Match
-        if ((from.includes("muzon") && to.includes("starmall")) || (from.includes("starmall") && to.includes("muzon"))) {
-            pathLayer = L.geoJSON(jeepData, { style: { color: '#1a73e8', weight: 8 } }).addTo(map);
-            map.fitBounds(pathLayer.getBounds(), { padding: [100, 100] });
-            document.getElementById('res-title').innerText = "Jeepney Route";
-            document.getElementById('res-sub').innerText = "Muzon ↔ Starmall via Quirino Hwy";
-            panel.classList.add('active-panel');
-        } 
-        // Check for Terminal Match
-        else {
-            let found = false;
-            termLayer.eachLayer(l => {
-                const n = (l.feature.properties.name || l.feature.properties.Name).toLowerCase();
-                if (n === to || n === from) {
-                    map.flyTo(l.getLatLng(), 17);
-                    l.openPopup();
-                    document.getElementById('res-title').innerText = "Tricycle Terminal";
-                    document.getElementById('res-sub').innerText = l.feature.properties.name || l.feature.properties.Name;
-                    panel.classList.add('active-panel');
-                    found = true;
+    // Load your Tricycle Terminals
+    fetch('Tricycle Terminal Points.geojson')
+        .then(r => r.json())
+        .then(data => {
+            termLayer = L.geoJSON(data, {
+                pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 6, fillColor: "#1a73e8", color: "#fff", weight: 2, fillOpacity: 1 }),
+                onEachFeature: (f, l) => {
+                    const name = f.properties.name || f.properties.Name;
+                    terminalData.push({ name: name, latlng: l.getLatLng() });
+                    l.bindPopup("<b>" + name + "</b>");
                 }
+            }).addTo(map);
+        });
+
+    function handleSearch(input, type) {
+        const listUI = document.getElementById('resultsList');
+        const val = input.value.toLowerCase();
+        listUI.innerHTML = '';
+        if (val.length < 1) { listUI.style.display = 'none'; return; }
+
+        const matches = terminalData.filter(t => t.name.toLowerCase().includes(val));
+        if (matches.length > 0) {
+            listUI.style.display = 'block';
+            matches.forEach(m => {
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.innerHTML = `<span class="material-icons-round" style="font-size:18px; color:#5f6368">location_on</span> ${m.name}`;
+                div.onclick = () => {
+                    input.value = m.name;
+                    listUI.style.display = 'none';
+                };
+                listUI.appendChild(div);
             });
-            if (!found) alert("No route found. Try searching 'Muzon' or 'Starmall'.");
         }
     }
 
-    function closePanel() { document.getElementById('fare-panel').classList.remove('active-panel'); }
-    
-    function toggleTerminals() {
-        const check = document.getElementById('termCheck');
-        if (check.checked) map.addLayer(termLayer);
-        else map.removeLayer(termLayer);
+    function triggerRouting() {
+        const fromName = document.getElementById('startLoc').value;
+        const toName = document.getElementById('toLoc').value;
+
+        let start, end;
+        terminalData.forEach(t => {
+            if (t.name === fromName) start = t.latlng;
+            if (t.name === toName) end = t.latlng;
+        });
+
+        if (start && end) {
+            if (routingControl) map.removeControl(routingControl);
+
+            routingControl = L.Routing.control({
+                waypoints: [start, end],
+                lineOptions: { styles: [{ color: '#1a73e8', weight: 6, opacity: 0.8 }] },
+                createMarker: function() { return null; },
+                addWaypoints: false,
+                routeWhileDragging: false
+            }).on('routesfound', function(e) {
+                const routes = e.routes;
+                const distance = (routes[0].summary.totalDistance / 1000).toFixed(2);
+                document.getElementById('dist-val').innerText = distance + " km";
+                document.getElementById('fare-panel').classList.add('active-panel');
+            }).addTo(map);
+        } else {
+            alert("Please select terminals from the dropdown list.");
+        }
+    }
+
+    function closePanel() {
+        document.getElementById('fare-panel').classList.remove('active-panel');
+        if (routingControl) map.removeControl(routingControl);
     }
 </script>
 </body>
