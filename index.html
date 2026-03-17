@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>MONTE SJDM v10.0</title>
+    <title>MONTE SJDM v11.0 | CSJDMNSHS Research</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
@@ -34,30 +34,29 @@
         .search-row { display: flex; align-items: center; position: relative; }
         .search-row input { border: none; background: transparent; width: 100%; padding: 12px; font-size: 16px; outline: none; color: var(--text); }
         
-        .swap-container { position: absolute; right: 12px; top: 35px; z-index: 5; }
-        .btn-swap { background: var(--card); border: 1px solid var(--divider); border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); color: var(--primary); }
+        /* Vice-Versa Logic */
+        .swap-btn { position: absolute; right: 10px; top: 38px; z-index: 5; background: var(--card); border: 1px solid var(--divider); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--primary); }
 
+        /* Traffic Toggle UI */
+        .traffic-box { display: flex; align-items: center; gap: 10px; margin: 8px 0; padding: 10px; background: var(--landmark-bg); border-radius: 12px; }
+        
         .results-dropdown { 
-            background: var(--card); border-radius: 0 0 16px 16px; 
-            max-height: 250px; overflow-y: auto; display: none; 
-            border-top: 1px solid var(--divider); margin: 0 -12px -8px -12px;
+            background: var(--card); border-radius: 0 0 16px 16px; max-height: 250px; 
+            overflow-y: auto; display: none; border-top: 1px solid var(--divider); margin: 0 -12px -8px -12px;
         }
         .result-item { padding: 12px 16px; border-bottom: 1px solid var(--divider); cursor: pointer; display: flex; align-items: center; gap: 12px; }
 
-        /* Travel Info Panel */
+        /* Fare Panel */
         #fare-panel {
             position: fixed; bottom: -100%; left: 0; right: 0;
             background: var(--card); z-index: 3000; border-radius: 28px 28px 0 0;
             padding: 24px; box-shadow: 0 -8px 30px rgba(0,0,0,0.15); transition: 0.4s;
-            max-height: 80vh; overflow-y: auto;
         }
         .fare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 15px 0; }
-        .fare-box { background: var(--landmark-bg); padding: 12px; border-radius: 12px; text-align: center; }
-        .fare-box b { font-size: 20px; font-family: 'JetBrains Mono'; }
-        
-        .travel-detail { display: flex; justify-content: space-between; font-size: 13px; margin: 4px 0; opacity: 0.8; }
+        .fare-box { background: var(--landmark-bg); padding: 12px; border-radius: 12px; text-align: center; border-bottom: 3px solid transparent; }
         
         .btn-main { width: 100%; background: var(--primary); color: white; border: none; border-radius: 12px; padding: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        .btn-copy { background: var(--accent); margin-top: 5px; font-size: 13px; padding: 10px; }
     </style>
 </head>
 <body data-theme="light">
@@ -65,51 +64,47 @@
 <div class="search-card">
     <div class="search-row">
         <span class="material-icons-round" onclick="openNav()" style="cursor:pointer; padding-right:8px">menu</span>
-        <input type="text" id="startLoc" placeholder="Origin..." oninput="handleSearch(this)">
+        <input type="text" id="startLoc" placeholder="Origin..." oninput="handleHybridSearch(this)">
     </div>
-    <div class="swap-container">
-        <button class="btn-swap" onclick="swapLocations()"><span class="material-icons-round">swap_vert</span></button>
-    </div>
+    <button class="swap-btn" onclick="swapLocations()"><span class="material-icons-round">swap_vert</span></button>
     <div style="height:1px; background:var(--divider); margin:2px 40px;"></div>
     <div class="search-row">
         <span class="material-icons-round" style="color:var(--primary); padding-right:8px">place</span>
-        <input type="text" id="endLoc" placeholder="Destination..." oninput="handleSearch(this)">
+        <input type="text" id="endLoc" placeholder="Destination..." oninput="handleHybridSearch(this)">
     </div>
+    
+    <div class="traffic-box">
+        <span class="material-icons-round" style="color:var(--error); font-size:20px;">traffic</span>
+        <span style="font-size:12px; font-weight:bold; flex:1;">Simulate Rush Hour?</span>
+        <input type="checkbox" id="trafficToggle" style="width:18px; height:18px;">
+    </div>
+
     <div id="dropdown" class="results-dropdown"></div>
     <button class="btn-main" onclick="runRoute()">PLAN COMMUTE</button>
 </div>
 
 <div id="fare-panel">
     <div style="width:40px; height:4px; background:var(--divider); margin:0 auto 15px; border-radius:2px;"></div>
-    
-    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-        <div>
-            <h3 id="vType" style="margin:0; color:var(--primary)">Service Type</h3>
-            <div id="rateInfo" style="font-size: 11px; opacity: 0.6;">Base Rate: ₱15.00</div>
-        </div>
-        <div style="text-align: right;">
-            <div id="resDist" style="font-size: 18px; font-weight:bold;">0.0 km</div>
-            <div id="resTime" style="font-size: 12px; color: var(--accent); font-weight:bold;">0 mins</div>
-        </div>
+    <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <h3 id="vType" style="margin:0; color:var(--primary)">Service Type</h3>
+        <span id="resDist" style="font-weight:bold; font-family:'JetBrains Mono'">0.00 km</span>
     </div>
 
     <div class="fare-grid">
-        <div class="fare-box" style="border-left: 4px solid var(--primary);">
-            <small>REGULAR</small><br>
-            <b id="fareReg">₱0</b>
+        <div class="fare-box" style="border-color: var(--primary);">
+            <small>REGULAR</small><br><b id="fareReg" style="font-size:22px;">₱0</b>
         </div>
-        <div class="fare-box" style="border-left: 4px solid var(--accent);">
-            <small>DISCOUNTED</small><br>
-            <b id="fareDisc">₱0</b>
+        <div class="fare-box" style="border-color: var(--accent);">
+            <small>DISCOUNTED</small><br><b id="fareDisc" style="font-size:22px;">₱0</b>
         </div>
     </div>
 
-    <div style="border-top: 1px solid var(--divider); padding-top: 10px;">
-        <div class="travel-detail"><span>Passenger Type</span><span>Student/Senior/PWD</span></div>
-        <div class="travel-detail"><span>Distance Surcharge</span><span id="surcharge">₱0.00</span></div>
-        <div class="travel-detail"><span>Route Status</span><span style="color:var(--accent)">Optimal</span></div>
+    <div style="font-size:12px; opacity:0.7; margin-bottom:15px;">
+        Time: <span id="resTime" style="font-weight:bold; color:var(--text)">--</span><br>
+        Surcharge: <span id="resSurcharge">₱0.00</span> (2026 Rate)
     </div>
 
+    <button class="btn-main btn-copy" onclick="copyForResearch()">COPY DATA FOR IMRAD TABLE</button>
     <button class="btn-main" onclick="resetApp()" style="background:var(--divider); color:var(--text)">NEW SEARCH</button>
 </div>
 
@@ -127,36 +122,20 @@
 
     fetch('Tricycle Terminal Points.geojson').then(r => r.json()).then(data => {
         L.geoJSON(data, {
-            pointToLayer: (f, latlng) => {
-                // SMALLER POINTERS: Radius 4 instead of default
-                return L.circleMarker(latlng, { 
-                    radius: 4, 
-                    fillColor: '#1a73e8', 
-                    color: '#fff', 
-                    weight: 1, 
-                    fillOpacity: 1 
-                });
-            },
+            pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 4, fillColor: '#1a73e8', color: '#fff', weight: 1, fillOpacity: 1 }),
             onEachFeature: (f, l) => {
-                terminals.push({ 
-                    name: f.properties.name || f.properties.Name, 
-                    latlng: l.getLatLng(),
-                    v: f.properties.vehicle || "Tricycle"
-                });
+                terminals.push({ name: f.properties.name || f.properties.Name, latlng: l.getLatLng(), v: f.properties.vehicle || "Tricycle" });
             }
         }).addTo(map);
     });
 
     function swapLocations() {
-        const s = document.getElementById('startLoc');
-        const e = document.getElementById('endLoc');
-        const temp = s.value;
-        s.value = e.value;
-        e.value = temp;
+        const s = document.getElementById('startLoc'), e = document.getElementById('endLoc');
+        [s.value, e.value] = [e.value, s.value];
         if(s.value && e.value) runRoute();
     }
 
-    async function handleSearch(el) {
+    async function handleHybridSearch(el) {
         const query = el.value.trim().toLowerCase();
         const dropdown = document.getElementById('dropdown');
         pendingTarget = el.id;
@@ -164,31 +143,31 @@
         if (query.length < 2) { dropdown.style.display = 'none'; return; }
         dropdown.style.display = 'block';
 
-        // Filter GeoJSON Terminals
         terminals.filter(t => t.name.toLowerCase().includes(query)).forEach(t => {
-            const div = document.createElement('div');
-            div.className = 'result-item';
-            div.innerHTML = `<span class="material-icons-round" style="color:var(--primary)">electric_rickshaw</span> ${t.name}`;
-            div.onclick = () => { document.getElementById(pendingTarget).value = t.name; dropdown.style.display = 'none'; };
-            dropdown.appendChild(div);
+            const item = createItem(t.name, 'electric_rickshaw', '#1a73e8', () => { document.getElementById(pendingTarget).value = t.name; dropdown.style.display = 'none'; });
+            dropdown.appendChild(item);
         });
 
-        // Geocoding for Landmarks
         if (query.length > 3) {
             const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}+San+Jose+del+Monte&limit=2`);
             const data = await res.json();
             data.forEach(place => {
-                const div = document.createElement('div');
-                div.className = 'result-item';
-                div.innerHTML = `<span class="material-icons-round" style="color:orange">location_city</span> ${place.display_name.split(',')[0]}`;
-                div.onclick = () => {
+                const item = createItem(place.display_name.split(',')[0], 'location_city', 'orange', () => {
                     const nearest = findNearest(L.latLng(place.lat, place.lon));
                     document.getElementById(pendingTarget).value = nearest.name;
                     dropdown.style.display = 'none';
-                };
-                dropdown.appendChild(div);
+                });
+                dropdown.appendChild(item);
             });
         }
+    }
+
+    function createItem(text, icon, color, action) {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        div.innerHTML = `<span class="material-icons-round" style="color:${color}">${icon}</span> ${text}`;
+        div.onclick = action;
+        return div;
     }
 
     function findNearest(latlng) {
@@ -201,13 +180,9 @@
     }
 
     function runRoute() {
-        const sVal = document.getElementById('startLoc').value;
-        const eVal = document.getElementById('endLoc').value;
+        const s = document.getElementById('startLoc').value, e = document.getElementById('endLoc').value;
         let p1, p2, v;
-        terminals.forEach(t => { 
-            if(t.name === sVal) { p1 = t.latlng; v = t.v; } 
-            if(t.name === eVal) p2 = t.latlng; 
-        });
+        terminals.forEach(t => { if(t.name === s) { p1 = t.latlng; v = t.v; } if(t.name === e) p2 = t.latlng; });
 
         if (p1 && p2) {
             if (routing) map.removeControl(routing);
@@ -217,36 +192,38 @@
             }).on('routesfound', ev => {
                 const route = ev.routes[0];
                 const d = route.summary.totalDistance / 1000;
+                let t = route.summary.totalTime / 60;
                 
-                // UPDATED 2026 FARE RATES
-                // Tricycle: ₱15.00 base (first 2km) + ₱5.00 every km after
-                // Modern PUV: ₱15.00 base (first 4km) + ₱2.20 every km after
-                let base = 15;
-                let surcharge = 0;
-                if (v === "Modern PUV") {
-                    surcharge = d > 4 ? (d - 4) * 2.20 : 0;
-                } else {
-                    surcharge = d > 2 ? (d - 2) * 5 : 0;
-                }
+                if (document.getElementById('trafficToggle').checked) t *= 1.8;
 
-                let total = base + surcharge;
-                let discounted = total * 0.80; // 20% Discount for Student/Senior/PWD
+                let base = 15;
+                let sur = (v === "Modern PUV") ? (d > 4 ? (d - 4) * 2.20 : 0) : (d > 2 ? (d - 2) * 5 : 0);
+                let total = base + sur;
 
                 document.getElementById('resDist').innerText = d.toFixed(2) + " km";
                 document.getElementById('fareReg').innerText = "₱" + Math.ceil(total);
-                document.getElementById('fareDisc').innerText = "₱" + Math.ceil(discounted);
-                document.getElementById('surcharge').innerText = "₱" + surcharge.toFixed(2);
-                document.getElementById('resTime').innerText = `~${Math.round(route.summary.totalTime / 60)} mins`;
+                document.getElementById('fareDisc').innerText = "₱" + Math.ceil(total * 0.8);
+                document.getElementById('resSurcharge').innerText = "₱" + sur.toFixed(2);
+                document.getElementById('resTime').innerText = `~${Math.round(t)} mins`;
                 document.getElementById('vType').innerText = v;
-                document.getElementById('rateInfo').innerText = `Base Rate: ₱${base}.00`;
-                
                 document.getElementById('fare-panel').style.bottom = "0";
                 map.fitBounds(L.latLngBounds(p1, p2), { padding: [100, 100] });
             }).addTo(map);
         }
     }
 
+    function copyForResearch() {
+        const d = document.getElementById('resDist').innerText;
+        const f = document.getElementById('fareReg').innerText;
+        const t = document.getElementById('resTime').innerText;
+        const v = document.getElementById('vType').innerText;
+        const rush = document.getElementById('trafficToggle').checked ? "YES" : "NO";
+        const text = `VEHICLE: ${v} | DIST: ${d} | FARE: ${f} | TIME: ${t} | RUSH HOUR: ${rush}`;
+        navigator.clipboard.writeText(text).then(() => alert("Research Data Copied!"));
+    }
+
     function resetApp() { document.getElementById('fare-panel').style.bottom = "-100%"; if(routing) map.removeControl(routing); }
+    function openNav() { alert("Use the map to explore terminals!"); }
 </script>
 </body>
 </html>
