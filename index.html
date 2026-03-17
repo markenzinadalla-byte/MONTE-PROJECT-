@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>MONTE SJDM v6.2</title>
+    <title>MONTE SJDM v6.4</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
@@ -14,10 +14,12 @@
         :root { 
             --bg: #f8f9fa; --card: #ffffff; --text: #202124; 
             --primary: #1a73e8; --accent: #188038; --divider: #dadce0;
+            --landmark-bg: #e8f0fe;
         }
         [data-theme="dark"] {
             --bg: #202124; --card: #303134; --text: #e8eaed; 
             --primary: #8ab4f8; --accent: #81c995; --divider: #5f6368;
+            --landmark-bg: #3c4043;
         }
 
         body { margin: 0; padding: 0; font-family: 'Google Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; transition: 0.3s; }
@@ -33,14 +35,24 @@
         .sidebar-header { padding: 40px 20px 20px; border-bottom: 1px solid var(--divider); }
         .nav-item { display: flex; align-items: center; justify-content: space-between; padding: 15px 20px; border-bottom: 1px solid var(--divider); }
 
-        /* Search Cards */
+        /* Search Card with Swap */
         .search-card {
             position: absolute; top: 12px; left: 12px; right: 12px;
             max-width: 420px; z-index: 2000; background: var(--card);
             border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 8px 12px;
+            display: flex; flex-direction: column;
         }
+        .search-container { position: relative; display: flex; flex-direction: column; flex-grow: 1; }
         .search-row { display: flex; align-items: center; }
         .search-row input { border: none; background: transparent; width: 100%; padding: 10px; font-size: 16px; outline: none; color: var(--text); }
+        
+        .swap-btn {
+            position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+            background: var(--card); border: 1px solid var(--divider); border-radius: 50%;
+            width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;
+            cursor: pointer; z-index: 5; color: var(--primary); box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
         .autocomplete-results { background: var(--card); max-height: 200px; overflow-y: auto; display: none; }
         .result-item { padding: 12px; border-bottom: 1px solid var(--divider); cursor: pointer; display: flex; align-items: center; gap: 10px; }
 
@@ -48,21 +60,24 @@
         .overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 4500; display: none; }
         .confirm-card {
             position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9);
-            width: 85%; max-width: 320px; background: var(--card); z-index: 5000;
-            border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            display: none; flex-direction: column; overflow: hidden; transition: 0.3s;
+            width: 85%; max-width: 340px; background: var(--card); z-index: 5000;
+            border-radius: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            display: none; flex-direction: column; padding: 24px; transition: 0.3s;
         }
         .confirm-card.active { display: flex; transform: translate(-50%, -50%) scale(1); }
-        .confirm-img { width: 100%; height: 160px; object-fit: cover; background: #eee; }
+        .landmark-badge {
+            background: var(--landmark-bg); color: var(--primary);
+            padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 10px; margin: 15px 0;
+        }
 
         /* Bottom Panel */
         #fare-panel {
             position: fixed; bottom: -400px; left: 0; right: 0;
-            background: var(--card); z-index: 3000; border-radius: 24px 24px 0 0;
-            padding: 24px; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); transition: 0.4s;
+            background: var(--card); z-index: 3000; border-radius: 28px 28px 0 0;
+            padding: 24px; box-shadow: 0 -5px 25px rgba(0,0,0,0.2); transition: 0.4s;
         }
         .active-panel { bottom: 0 !important; }
-        .btn-main { width: 100%; background: var(--primary); color: white; border: none; border-radius: 12px; padding: 14px; font-weight: bold; cursor: pointer; }
+        .btn-main { width: 100%; background: var(--primary); color: white; border: none; border-radius: 14px; padding: 16px; font-weight: bold; cursor: pointer; font-size: 15px; }
         
         /* Switch UI */
         .switch { position: relative; display: inline-block; width: 40px; height: 20px; }
@@ -72,7 +87,7 @@
         input:checked + .slider { background-color: var(--primary); }
         input:checked + .slider:before { transform: translateX(20px); }
 
-        .leaflet-routing-container { display: none; }
+        .leaflet-routing-container { display: none !important; }
     </style>
 </head>
 <body data-theme="light">
@@ -83,57 +98,66 @@
         <p style="margin:4px 0; font-size:12px; opacity:0.7">Transit Research Platform</p>
     </div>
     <div class="nav-item"><span>Dark Mode</span><label class="switch"><input type="checkbox" id="themeToggle" onchange="toggleTheme()"><span class="slider"></span></label></div>
-    <div class="nav-item"><span>Tricycle Terminals</span><label class="switch"><input type="checkbox" checked onchange="toggleLayer()"><span class="slider"></span></label></div>
+    <div class="nav-item"><span>Show Terminals</span><label class="switch"><input type="checkbox" checked onchange="toggleLayer()"><span class="slider"></span></label></div>
     <div style="padding: 20px; position: absolute; bottom: 0; width: 100%; box-sizing: border-box;">
-        <p style="font-size: 10px; opacity: 0.5;">Build: 2026.03.17_v6.2</p>
+        <p style="font-size: 10px; opacity: 0.5;">Build: 2026.03.17_v6.4_SwapFinal</p>
         <button class="btn-main" onclick="closeNav()" style="background:#eee; color:#333;">Close Menu</button>
     </div>
 </div>
 
 <div class="search-card">
-    <div class="search-row">
-        <span class="material-icons-round" onclick="openNav()" style="cursor:pointer">menu</span>
-        <input type="text" id="startLoc" placeholder="Start location..." oninput="handleSearch(this)">
-    </div>
-    <div style="height:1px; background:var(--divider); margin:4px 8px;"></div>
-    <div class="search-row">
-        <span class="material-icons-round" style="color:var(--primary)">place</span>
-        <input type="text" id="endLoc" placeholder="Where to?" oninput="handleSearch(this)">
+    <div class="search-container">
+        <div class="search-row">
+            <span class="material-icons-round" onclick="openNav()" style="cursor:pointer; padding: 0 10px;">menu</span>
+            <input type="text" id="startLoc" placeholder="Start Terminal..." oninput="handleSearch(this)">
+        </div>
+        <div style="height:1px; background:var(--divider); margin:4px 45px 4px 40px;"></div>
+        <div class="search-row">
+            <span class="material-icons-round" style="color:var(--primary); padding: 0 10px;">place</span>
+            <input type="text" id="endLoc" placeholder="Destination..." oninput="handleSearch(this)">
+        </div>
+        <div class="swap-btn" onclick="swapLocations()">
+            <span class="material-icons-round">swap_vert</span>
+        </div>
     </div>
     <div id="resultsList" class="autocomplete-results"></div>
-    <button class="btn-main" onclick="runRoute()" style="margin-top:10px">Calculate Route</button>
+    <button class="btn-main" onclick="runRoute()" style="margin-top:10px">GET ROUTE & FARE</button>
 </div>
 
 <div class="overlay" id="modalOverlay" onclick="cancelSelection()"></div>
 <div class="confirm-card" id="confirmCard">
-    <img src="" id="prevImg" class="confirm-img">
-    <div style="padding: 20px;">
-        <h3 id="prevName" style="margin:0">Location</h3>
-        <p id="prevDesc" style="font-size:12px; opacity:0.7; margin:10px 0;">Landmark preview...</p>
-        <div style="display:flex; gap:10px;">
-            <button class="btn-main" id="confirmBtn" style="flex:2">SELECT</button>
-            <button class="btn-main" onclick="cancelSelection()" style="flex:1; background:#eee; color:#333;">X</button>
+    <h2 id="prevName" style="margin:0; font-size: 20px;">Terminal Name</h2>
+    <div class="landmark-badge">
+        <span class="material-icons-round">apartment</span>
+        <div>
+            <div style="font-weight: bold; font-size: 11px; letter-spacing: 0.5px;">NEARBY LANDMARK</div>
+            <div id="prevLandmark" style="font-size: 14px;">Loading...</div>
         </div>
+    </div>
+    <p id="prevDesc" style="font-size:13px; line-height: 1.5; margin: 0 0 20px 0; opacity: 0.8;">Details...</p>
+    <div style="display:flex; gap:12px;">
+        <button class="btn-main" id="confirmBtn" style="flex:2">CONFIRM</button>
+        <button class="btn-main" onclick="cancelSelection()" style="flex:1; background:var(--divider); color:var(--text)">X</button>
     </div>
 </div>
 
 <div id="fare-panel">
     <div style="width:40px; height:4px; background:var(--divider); margin:0 auto 15px; border-radius:2px;"></div>
     <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3 style="margin:0">Trip Estimate</h3>
-        <span id="distInfo" style="font-weight:bold; color:var(--primary)">0.0 km</span>
+        <h3 style="margin:0">Fare Summary</h3>
+        <span id="distInfo" style="font-weight:bold; color:var(--primary); background: var(--landmark-bg); padding: 4px 10px; border-radius: 8px;">0.0 km</span>
     </div>
     <div style="display:flex; gap:15px; margin:20px 0;">
-        <div style="flex:1; background:var(--bg); padding:15px; border-radius:12px; text-align:center;">
-            <small>REGULAR</small>
+        <div style="flex:1; background:var(--bg); padding:15px; border-radius:16px; text-align:center; border: 1px solid var(--divider);">
+            <small style="font-weight: bold; font-size: 10px;">REGULAR</small>
             <div id="fareReg" style="font-size:24px; font-weight:bold; color:var(--accent)">₱15</div>
         </div>
-        <div style="flex:1; background:var(--bg); padding:15px; border-radius:12px; text-align:center;">
-            <small>STUDENT</small>
+        <div style="flex:1; background:var(--bg); padding:15px; border-radius:16px; text-align:center; border: 1px solid var(--divider);">
+            <small style="font-weight: bold; font-size: 10px;">STUDENT</small>
             <div id="fareDisc" style="font-size:24px; font-weight:bold; color:var(--accent)">₱12</div>
         </div>
     </div>
-    <button class="btn-main" onclick="closePanel()" style="background:var(--divider); color:var(--text)">Reset Map</button>
+    <button class="btn-main" onclick="closePanel()" style="background:var(--divider); color:var(--text)">RESET</button>
 </div>
 
 <div id="map"></div>
@@ -151,9 +175,10 @@
     let termLayer, routing, pendingPoint, pendingTarget;
 
     const landmarkDB = {
-        "Muzon Central Terminal": { desc: "Main transport hub connecting SJDM to Bulacan and Metro Manila.", img: "https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?w=500&q=80" },
-        "Starmall SJDM": { desc: "Major mall along Quirino Highway, hub for modern jeepneys.", img: "https://images.unsplash.com/photo-1582037928769-181f2644ecb7?w=500&q=80" },
-        "CSJDM National Science High School": { desc: "Local science high school, focus of traffic study.", img: "https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=500&q=80" }
+        "Muzon Central Terminal": { landmark: "Simbahan ng Muzon", desc: "Main interchange for Marilao and North Caloocan routes." },
+        "Starmall SJDM": { landmark: "Skyline Hospital", desc: "Hub for modern PUVs and inter-city buses." },
+        "CSJDM National Science High School": { landmark: "City Hall Annex", desc: "Located in the Academic Center, Brgy. San Martin." },
+        "Sapang Palay Terminal": { landmark: "Sampol Market", desc: "Serving Area 1-9 commuters." }
     };
 
     fetch('Tricycle Terminal Points.geojson').then(r => r.json()).then(data => {
@@ -165,6 +190,15 @@
             }
         }).addTo(map);
     });
+
+    function swapLocations() {
+        const start = document.getElementById('startLoc');
+        const end = document.getElementById('endLoc');
+        const temp = start.value;
+        start.value = end.value;
+        end.value = temp;
+        if(start.value && end.value) runRoute();
+    }
 
     function toggleTheme() {
         const isDark = document.getElementById('themeToggle').checked;
@@ -191,7 +225,7 @@
             matches.forEach(m => {
                 const div = document.createElement('div');
                 div.className = 'result-item';
-                div.innerHTML = `<span class="material-icons-round">location_on</span> ${m.name}`;
+                div.innerHTML = `<span class="material-icons-round" style="font-size: 18px; color: #5f6368;">location_on</span> ${m.name}`;
                 div.onclick = () => showPreview(m);
                 list.appendChild(div);
             });
@@ -200,10 +234,10 @@
 
     function showPreview(m) {
         pendingPoint = m;
-        const info = landmarkDB[m.name] || { desc: "Tricycle terminal serving the local community.", img: "https://images.unsplash.com/photo-1519011985187-444d62641929?w=500&q=80" };
+        const info = landmarkDB[m.name] || { landmark: "SJDM Local Landmark", desc: "Standard tricycle terminal point." };
         document.getElementById('prevName').innerText = m.name;
+        document.getElementById('prevLandmark').innerText = info.landmark;
         document.getElementById('prevDesc').innerText = info.desc;
-        document.getElementById('prevImg').src = info.img;
         document.getElementById('confirmCard').classList.add('active');
         document.getElementById('modalOverlay').style.display = 'block';
     }
@@ -230,7 +264,7 @@
             routing = L.Routing.control({
                 waypoints: [p1, p2],
                 createMarker: () => null,
-                lineOptions: { styles: [{ color: '#1a73e8', weight: 6, opacity: 0.8 }] }
+                lineOptions: { styles: [{ color: '#1a73e8', weight: 8, opacity: 0.7 }] }
             }).on('routesfound', e => {
                 const dist = e.routes[0].summary.totalDistance / 1000;
                 let fare = dist <= 2 ? 15 : 15 + ((dist - 2) * 5);
@@ -238,7 +272,7 @@
                 document.getElementById('fareReg').innerText = "₱" + Math.ceil(fare);
                 document.getElementById('fareDisc').innerText = "₱" + Math.ceil(fare * 0.8);
                 document.getElementById('fare-panel').classList.add('active-panel');
-                map.fitBounds(L.latLngBounds(p1, p2), { padding: [100, 100] });
+                map.fitBounds(L.latLngBounds(p1, p2), { padding: [120, 120] });
             }).addTo(map);
         }
     }
