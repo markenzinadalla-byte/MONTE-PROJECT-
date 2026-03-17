@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>MONTE SJDM v9.5</title>
+    <title>MONTE SJDM v10.0</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     
     <style>
@@ -23,9 +23,9 @@
         }
 
         body { margin: 0; font-family: 'Google Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-        #map { height: 100vh; width: 100vw; z-index: 1; transition: filter 0.5s ease; }
+        #map { height: 100vh; width: 100vw; z-index: 1; }
 
-        /* Autocomplete Dropdown Styling */
+        /* Search Interface */
         .search-card {
             position: absolute; top: 12px; left: 12px; right: 12px;
             max-width: 420px; z-index: 2000; background: var(--card);
@@ -34,102 +34,83 @@
         .search-row { display: flex; align-items: center; position: relative; }
         .search-row input { border: none; background: transparent; width: 100%; padding: 12px; font-size: 16px; outline: none; color: var(--text); }
         
+        .swap-container { position: absolute; right: 12px; top: 35px; z-index: 5; }
+        .btn-swap { background: var(--card); border: 1px solid var(--divider); border-radius: 50%; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.1); color: var(--primary); }
+
         .results-dropdown { 
             background: var(--card); border-radius: 0 0 16px 16px; 
-            max-height: 300px; overflow-y: auto; display: none; 
+            max-height: 250px; overflow-y: auto; display: none; 
             border-top: 1px solid var(--divider); margin: 0 -12px -8px -12px;
         }
-        .result-item { 
-            padding: 12px 16px; border-bottom: 1px solid var(--divider); 
-            cursor: pointer; display: flex; align-items: center; gap: 12px;
-            transition: 0.2s;
-        }
-        .result-item:hover { background: var(--landmark-bg); }
-        .result-item .icon-box { display: flex; align-items: center; justify-content: center; }
+        .result-item { padding: 12px 16px; border-bottom: 1px solid var(--divider); cursor: pointer; display: flex; align-items: center; gap: 12px; }
 
-        /* Sidebar & Panels */
-        .sidebar { height: 100%; width: 0; position: fixed; z-index: 4000; top: 0; left: 0; background: var(--card); transition: 0.3s; overflow-x: hidden; }
-        .info-panel { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 5500; display: none; flex-direction: column; }
-        
-        .btn-main { width: 100%; background: var(--primary); color: white; border: none; border-radius: 12px; padding: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        
-        /* Modal */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 6000; display: none; align-items: center; justify-content: center; }
-        .confirm-box { background: var(--card); width: 85%; max-width: 340px; border-radius: 24px; padding: 24px; text-align: center; }
-
+        /* Travel Info Panel */
         #fare-panel {
             position: fixed; bottom: -100%; left: 0; right: 0;
             background: var(--card); z-index: 3000; border-radius: 28px 28px 0 0;
             padding: 24px; box-shadow: 0 -8px 30px rgba(0,0,0,0.15); transition: 0.4s;
+            max-height: 80vh; overflow-y: auto;
         }
+        .fare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 15px 0; }
+        .fare-box { background: var(--landmark-bg); padding: 12px; border-radius: 12px; text-align: center; }
+        .fare-box b { font-size: 20px; font-family: 'JetBrains Mono'; }
+        
+        .travel-detail { display: flex; justify-content: space-between; font-size: 13px; margin: 4px 0; opacity: 0.8; }
+        
+        .btn-main { width: 100%; background: var(--primary); color: white; border: none; border-radius: 12px; padding: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
     </style>
 </head>
 <body data-theme="light">
 
-<div id="sideNav" class="sidebar">
-    <div style="padding: 40px 24px 20px; background: var(--primary); color: white;">
-        <h2 style="margin:0">MONTE SJDM</h2>
-        <p style="margin:4px 0; font-size:12px; opacity:0.8">Commuter Assistant</p>
-    </div>
-    <div style="padding: 10px 0;">
-        <div class="result-item" onclick="toggleTheme()">
-            <span class="material-icons-round">dark_mode</span><span>Toggle Map & UI Dark Mode</span>
-        </div>
-        <div class="result-item" onclick="openPanel('hotlinePanel')">
-            <span class="material-icons-round" style="color:var(--error)">emergency</span><span>LGU Hotlines</span>
-        </div>
-    </div>
-    <div style="padding: 24px;"><button class="btn-main" onclick="closeNav()" style="background:var(--landmark-bg); color:var(--text)">Close Menu</button></div>
-</div>
-
-<div id="hotlinePanel" class="info-panel">
-    <div style="padding: 24px; display: flex; align-items: center; gap: 15px;" onclick="closePanel('hotlinePanel')">
-        <span class="material-icons-round">arrow_back</span><h2 style="margin:0">LGU Directory</h2>
-    </div>
-    <div style="padding: 24px;">
-        <p style="font-size: 12px; opacity: 0.6;">Official San Jose del Monte Directory (2025-2026)</p>
-        <div class="result-item"><span class="material-icons-round">local_police</span><span>Police: 0916-432-0401</span></div>
-        <div class="result-item"><span class="material-icons-round">fire_truck</span><span>Fire: 0932-373-2444</span></div>
-        <div class="result-item"><span class="material-icons-round">traffic</span><span>Traffic (CTM): 0936-631-0799</span></div>
-    </div>
-</div>
-
 <div class="search-card">
     <div class="search-row">
         <span class="material-icons-round" onclick="openNav()" style="cursor:pointer; padding-right:8px">menu</span>
-        <input type="text" id="startLoc" placeholder="Search origin (Terminal or Landmark)..." oninput="handleHybridSearch(this)">
+        <input type="text" id="startLoc" placeholder="Origin..." oninput="handleSearch(this)">
+    </div>
+    <div class="swap-container">
+        <button class="btn-swap" onclick="swapLocations()"><span class="material-icons-round">swap_vert</span></button>
     </div>
     <div style="height:1px; background:var(--divider); margin:2px 40px;"></div>
     <div class="search-row">
         <span class="material-icons-round" style="color:var(--primary); padding-right:8px">place</span>
-        <input type="text" id="endLoc" placeholder="Search destination..." oninput="handleHybridSearch(this)">
+        <input type="text" id="endLoc" placeholder="Destination..." oninput="handleSearch(this)">
     </div>
-    
     <div id="dropdown" class="results-dropdown"></div>
-    <button class="btn-main" onclick="runRoute()">GET FARE & ROUTE</button>
-</div>
-
-<div class="modal-overlay" id="snapModal">
-    <div class="confirm-box">
-        <span class="material-icons-round" style="font-size: 48px; color: var(--primary);">hail</span>
-        <h3>Nearby Hub Found</h3>
-        <p id="snapMsg" style="font-size: 14px; opacity: 0.8;"></p>
-        <button class="btn-main" id="confirmSnap">YES, USE THIS HUB</button>
-        <button class="btn-main" onclick="closeSnap()" style="background:none; color:var(--text);">CANCEL</button>
-    </div>
+    <button class="btn-main" onclick="runRoute()">PLAN COMMUTE</button>
 </div>
 
 <div id="fare-panel">
-    <div style="width:40px; height:4px; background:var(--divider); margin:0 auto 20px; border-radius:2px;"></div>
-    <div style="display:flex; justify-content:space-between; align-items:baseline;">
-        <h3 id="vType" style="margin:0; color:var(--primary)">Tricycle</h3>
-        <span id="resDist" style="font-weight:bold;">0.0 km</span>
+    <div style="width:40px; height:4px; background:var(--divider); margin:0 auto 15px; border-radius:2px;"></div>
+    
+    <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+        <div>
+            <h3 id="vType" style="margin:0; color:var(--primary)">Service Type</h3>
+            <div id="rateInfo" style="font-size: 11px; opacity: 0.6;">Base Rate: ₱15.00</div>
+        </div>
+        <div style="text-align: right;">
+            <div id="resDist" style="font-size: 18px; font-weight:bold;">0.0 km</div>
+            <div id="resTime" style="font-size: 12px; color: var(--accent); font-weight:bold;">0 mins</div>
+        </div>
     </div>
-    <div style="background:var(--landmark-bg); padding:15px; border-radius:12px; margin:15px 0; text-align:center;">
-        <div id="resFare" style="font-size: 32px; font-weight:bold;">₱0.00</div>
-        <div id="resTime" style="font-size: 12px; font-weight:bold; color:var(--accent);">~0 mins travel</div>
+
+    <div class="fare-grid">
+        <div class="fare-box" style="border-left: 4px solid var(--primary);">
+            <small>REGULAR</small><br>
+            <b id="fareReg">₱0</b>
+        </div>
+        <div class="fare-box" style="border-left: 4px solid var(--accent);">
+            <small>DISCOUNTED</small><br>
+            <b id="fareDisc">₱0</b>
+        </div>
     </div>
-    <button class="btn-main" onclick="resetApp()" style="background:var(--divider); color:var(--text)">CLEAR</button>
+
+    <div style="border-top: 1px solid var(--divider); padding-top: 10px;">
+        <div class="travel-detail"><span>Passenger Type</span><span>Student/Senior/PWD</span></div>
+        <div class="travel-detail"><span>Distance Surcharge</span><span id="surcharge">₱0.00</span></div>
+        <div class="travel-detail"><span>Route Status</span><span style="color:var(--accent)">Optimal</span></div>
+    </div>
+
+    <button class="btn-main" onclick="resetApp()" style="background:var(--divider); color:var(--text)">NEW SEARCH</button>
 </div>
 
 <div id="map"></div>
@@ -138,76 +119,76 @@
 <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
 <script>
-    // Map setup with two tile layers
     const map = L.map('map', { zoomControl: false }).setView([14.81, 121.05], 14);
-    
     const lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
     const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
 
-    let terminals = [], routing, pendingTarget, nearestPoint;
+    let terminals = [], routing, pendingTarget;
 
-    // Load GeoJSON and populate Autocomplete
     fetch('Tricycle Terminal Points.geojson').then(r => r.json()).then(data => {
         L.geoJSON(data, {
+            pointToLayer: (f, latlng) => {
+                // SMALLER POINTERS: Radius 4 instead of default
+                return L.circleMarker(latlng, { 
+                    radius: 4, 
+                    fillColor: '#1a73e8', 
+                    color: '#fff', 
+                    weight: 1, 
+                    fillOpacity: 1 
+                });
+            },
             onEachFeature: (f, l) => {
                 terminals.push({ 
                     name: f.properties.name || f.properties.Name, 
                     latlng: l.getLatLng(),
-                    type: 'terminal',
                     v: f.properties.vehicle || "Tricycle"
                 });
             }
         }).addTo(map);
     });
 
-    async function handleHybridSearch(el) {
+    function swapLocations() {
+        const s = document.getElementById('startLoc');
+        const e = document.getElementById('endLoc');
+        const temp = s.value;
+        s.value = e.value;
+        e.value = temp;
+        if(s.value && e.value) runRoute();
+    }
+
+    async function handleSearch(el) {
         const query = el.value.trim().toLowerCase();
         const dropdown = document.getElementById('dropdown');
         pendingTarget = el.id;
-        
         dropdown.innerHTML = '';
         if (query.length < 2) { dropdown.style.display = 'none'; return; }
         dropdown.style.display = 'block';
 
-        // 1. Filter Terminals (From GeoJSON)
-        const matchedTerms = terminals.filter(t => t.name.toLowerCase().includes(query));
-        matchedTerms.forEach(t => {
-            const item = createItem(t.name, 'electric_rickshaw', '#1a73e8', () => selectTerminal(t));
-            dropdown.appendChild(item);
+        // Filter GeoJSON Terminals
+        terminals.filter(t => t.name.toLowerCase().includes(query)).forEach(t => {
+            const div = document.createElement('div');
+            div.className = 'result-item';
+            div.innerHTML = `<span class="material-icons-round" style="color:var(--primary)">electric_rickshaw</span> ${t.name}`;
+            div.onclick = () => { document.getElementById(pendingTarget).value = t.name; dropdown.style.display = 'none'; };
+            dropdown.appendChild(div);
         });
 
-        // 2. Geocoding Landmarks (OSM)
+        // Geocoding for Landmarks
         if (query.length > 3) {
-            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}+San+Jose+del+Monte&limit=3`);
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}+San+Jose+del+Monte&limit=2`);
             const data = await res.json();
             data.forEach(place => {
-                const shortName = place.display_name.split(',')[0];
-                const item = createItem(shortName, 'location_city', '#f57c00', () => selectLandmark(place));
-                dropdown.appendChild(item);
+                const div = document.createElement('div');
+                div.className = 'result-item';
+                div.innerHTML = `<span class="material-icons-round" style="color:orange">location_city</span> ${place.display_name.split(',')[0]}`;
+                div.onclick = () => {
+                    const nearest = findNearest(L.latLng(place.lat, place.lon));
+                    document.getElementById(pendingTarget).value = nearest.name;
+                    dropdown.style.display = 'none';
+                };
+                dropdown.appendChild(div);
             });
         }
-    }
-
-    function createItem(text, icon, color, action) {
-        const div = document.createElement('div');
-        div.className = 'result-item';
-        div.innerHTML = `<span class="material-icons-round" style="color:${color}">${icon}</span> <span>${text}</span>`;
-        div.onclick = action;
-        return div;
-    }
-
-    function selectTerminal(t) {
-        document.getElementById(pendingTarget).value = t.name;
-        document.getElementById('dropdown').style.display = 'none';
-    }
-
-    function selectLandmark(place) {
-        const pos = L.latLng(place.lat, place.lon);
-        nearestPoint = findNearest(pos);
-        
-        document.getElementById('snapMsg').innerHTML = `<b>${place.display_name.split(',')[0]}</b> is closest to <b>${nearestPoint.name}</b>. Use this terminal?`;
-        document.getElementById('snapModal').style.display = 'flex';
-        map.flyTo(pos, 16);
     }
 
     function findNearest(latlng) {
@@ -219,53 +200,52 @@
         return closest;
     }
 
-    document.getElementById('confirmSnap').onclick = () => {
-        document.getElementById(pendingTarget).value = nearestPoint.name;
-        closeSnap();
-        document.getElementById('dropdown').style.display = 'none';
-    };
-
     function runRoute() {
-        const s = document.getElementById('startLoc').value;
-        const e = document.getElementById('endLoc').value;
+        const sVal = document.getElementById('startLoc').value;
+        const eVal = document.getElementById('endLoc').value;
         let p1, p2, v;
         terminals.forEach(t => { 
-            if(t.name === s) { p1 = t.latlng; v = t.v; } 
-            if(t.name === e) p2 = t.latlng; 
+            if(t.name === sVal) { p1 = t.latlng; v = t.v; } 
+            if(t.name === eVal) p2 = t.latlng; 
         });
 
         if (p1 && p2) {
             if (routing) map.removeControl(routing);
             routing = L.Routing.control({
                 waypoints: [p1, p2], createMarker: () => null,
-                lineOptions: { styles: [{ color: '#1a73e8', weight: 7, opacity: 0.8 }] }
+                lineOptions: { styles: [{ color: '#1a73e8', weight: 6, opacity: 0.8 }] }
             }).on('routesfound', ev => {
                 const route = ev.routes[0];
                 const d = route.summary.totalDistance / 1000;
-                let fare = (v === "Modern PUV") ? 15 + ((d-4)*2) : (d <= 2 ? 15 : 15 + ((d-2)*5));
                 
+                // UPDATED 2026 FARE RATES
+                // Tricycle: ₱15.00 base (first 2km) + ₱5.00 every km after
+                // Modern PUV: ₱15.00 base (first 4km) + ₱2.20 every km after
+                let base = 15;
+                let surcharge = 0;
+                if (v === "Modern PUV") {
+                    surcharge = d > 4 ? (d - 4) * 2.20 : 0;
+                } else {
+                    surcharge = d > 2 ? (d - 2) * 5 : 0;
+                }
+
+                let total = base + surcharge;
+                let discounted = total * 0.80; // 20% Discount for Student/Senior/PWD
+
                 document.getElementById('resDist').innerText = d.toFixed(2) + " km";
-                document.getElementById('resFare').innerText = "₱" + Math.ceil(fare < 15 ? 15 : fare);
-                document.getElementById('resTime').innerText = `~${Math.round(route.summary.totalTime / 60)} mins travel`;
-                document.getElementById('vType').innerText = v + " Service";
+                document.getElementById('fareReg').innerText = "₱" + Math.ceil(total);
+                document.getElementById('fareDisc').innerText = "₱" + Math.ceil(discounted);
+                document.getElementById('surcharge').innerText = "₱" + surcharge.toFixed(2);
+                document.getElementById('resTime').innerText = `~${Math.round(route.summary.totalTime / 60)} mins`;
+                document.getElementById('vType').innerText = v;
+                document.getElementById('rateInfo').innerText = `Base Rate: ₱${base}.00`;
+                
                 document.getElementById('fare-panel').style.bottom = "0";
                 map.fitBounds(L.latLngBounds(p1, p2), { padding: [100, 100] });
             }).addTo(map);
         }
     }
 
-    // UI Toggles
-    function toggleTheme() {
-        const isDark = document.body.dataset.theme === 'dark';
-        document.body.dataset.theme = isDark ? 'light' : 'dark';
-        if (!isDark) { darkTiles.addTo(map); map.removeLayer(lightTiles); } 
-        else { lightTiles.addTo(map); map.removeLayer(darkTiles); }
-    }
-    function openNav() { document.getElementById("sideNav").style.width = "280px"; }
-    function closeNav() { document.getElementById("sideNav").style.width = "0"; }
-    function openPanel(id) { document.getElementById(id).style.display = 'flex'; closeNav(); }
-    function closePanel(id) { document.getElementById(id).style.display = 'none'; }
-    function closeSnap() { document.getElementById('snapModal').style.display = 'none'; }
     function resetApp() { document.getElementById('fare-panel').style.bottom = "-100%"; if(routing) map.removeControl(routing); }
 </script>
 </body>
