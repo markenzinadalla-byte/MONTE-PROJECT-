@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <title>MONTE SJDM v9.0 | Student Research Project</title>
+    <title>MONTE SJDM v9.5</title>
     
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
     
     <style>
@@ -15,195 +15,121 @@
             --bg: #f8f9fa; --card: #ffffff; --text: #202124; 
             --primary: #1a73e8; --accent: #188038; --divider: #dadce0;
             --landmark-bg: #f1f3f4; --secondary: #5f6368; --error: #d93025;
-            --shadow: 0 4px 20px rgba(0,0,0,0.08);
         }
         [data-theme="dark"] {
-            --bg: #121212; --card: #1e1e1e; --text: #e8eaed; 
+            --bg: #121212; --card: #202124; --text: #e8eaed; 
             --primary: #8ab4f8; --accent: #81c995; --divider: #3c4043;
             --landmark-bg: #2d2e31;
         }
 
         body { margin: 0; font-family: 'Google Sans', sans-serif; background: var(--bg); color: var(--text); overflow: hidden; }
-        #map { height: 100vh; width: 100vw; z-index: 1; }
+        #map { height: 100vh; width: 100vw; z-index: 1; transition: filter 0.5s ease; }
 
-        /* Main Search Interface */
-        .ui-container { position: absolute; top: 12px; left: 12px; right: 12px; max-width: 420px; z-index: 2000; }
-        .glass-card { 
-            background: var(--card); border-radius: 20px; 
-            box-shadow: var(--shadow); padding: 12px; 
-            border: 1px solid var(--divider);
+        /* Autocomplete Dropdown Styling */
+        .search-card {
+            position: absolute; top: 12px; left: 12px; right: 12px;
+            max-width: 420px; z-index: 2000; background: var(--card);
+            border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 8px 12px;
         }
+        .search-row { display: flex; align-items: center; position: relative; }
+        .search-row input { border: none; background: transparent; width: 100%; padding: 12px; font-size: 16px; outline: none; color: var(--text); }
         
-        .search-group { display: flex; flex-direction: column; gap: 8px; }
-        .search-row { display: flex; align-items: center; background: var(--landmark-bg); border-radius: 12px; padding: 4px 12px; transition: 0.3s; }
-        .search-row:focus-within { box-shadow: 0 0 0 2px var(--primary); background: var(--card); }
-        
-        .search-row input { 
-            border: none; background: transparent; width: 100%; padding: 10px; 
-            font-size: 15px; outline: none; color: var(--text); font-family: 'Google Sans';
+        .results-dropdown { 
+            background: var(--card); border-radius: 0 0 16px 16px; 
+            max-height: 300px; overflow-y: auto; display: none; 
+            border-top: 1px solid var(--divider); margin: 0 -12px -8px -12px;
         }
-
-        /* Sidebar System */
-        .sidebar { height: 100%; width: 0; position: fixed; z-index: 4000; top: 0; left: 0; background: var(--card); transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); overflow-x: hidden; }
-        .side-header { padding: 50px 24px 30px; background: linear-gradient(135deg, var(--primary), #0d47a1); color: white; }
-        .nav-link { 
-            display: flex; align-items: center; gap: 16px; padding: 18px 24px; 
-            cursor: pointer; border-bottom: 1px solid var(--divider);
+        .result-item { 
+            padding: 12px 16px; border-bottom: 1px solid var(--divider); 
+            cursor: pointer; display: flex; align-items: center; gap: 12px;
             transition: 0.2s;
         }
-        .nav-link:active { background: var(--landmark-bg); }
+        .result-item:hover { background: var(--landmark-bg); }
+        .result-item .icon-box { display: flex; align-items: center; justify-content: center; }
 
-        /* Full Screen Overlays */
-        .info-panel { 
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-            background: var(--bg); z-index: 5000; display: none; 
-            flex-direction: column; animation: slideUp 0.3s ease-out;
-        }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        /* Sidebar & Panels */
+        .sidebar { height: 100%; width: 0; position: fixed; z-index: 4000; top: 0; left: 0; background: var(--card); transition: 0.3s; overflow-x: hidden; }
+        .info-panel { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); z-index: 5500; display: none; flex-direction: column; }
         
-        .panel-content { padding: 24px; overflow-y: auto; flex-grow: 1; }
-        .hotline-item { 
-            background: var(--card); padding: 16px; border-radius: 16px; 
-            margin-bottom: 12px; display: flex; justify-content: space-between; 
-            align-items: center; border: 1px solid var(--divider);
-            text-decoration: none; color: inherit;
-        }
-        .num-tag { font-family: 'JetBrains Mono'; font-weight: bold; color: var(--primary); font-size: 14px; }
+        .btn-main { width: 100%; background: var(--primary); color: white; border: none; border-radius: 12px; padding: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        
+        /* Modal */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 6000; display: none; align-items: center; justify-content: center; }
+        .confirm-box { background: var(--card); width: 85%; max-width: 340px; border-radius: 24px; padding: 24px; text-align: center; }
 
-        /* Confirmation & Action Buttons */
-        .btn-action { 
-            background: var(--primary); color: white; border: none; 
-            border-radius: 14px; padding: 14px; font-weight: 600; 
-            cursor: pointer; width: 100%; transition: 0.2s;
-            display: flex; align-items: center; justify-content: center; gap: 8px;
-        }
-        .btn-action:hover { opacity: 0.9; transform: scale(0.98); }
-
-        .confirm-modal {
-            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            width: 88%; max-width: 360px; background: var(--card); z-index: 6000;
-            border-radius: 24px; padding: 24px; display: none; box-shadow: 0 20px 60px rgba(0,0,0,0.4);
-        }
-        .dimmer { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 5500; display: none; }
-
-        #fare-dashboard {
-            position: fixed; bottom: -100%; left: 0; right: 0; 
-            background: var(--card); z-index: 3000; border-radius: 30px 30px 0 0;
-            padding: 24px; transition: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            border-top: 1px solid var(--divider);
+        #fare-panel {
+            position: fixed; bottom: -100%; left: 0; right: 0;
+            background: var(--card); z-index: 3000; border-radius: 28px 28px 0 0;
+            padding: 24px; box-shadow: 0 -8px 30px rgba(0,0,0,0.15); transition: 0.4s;
         }
     </style>
 </head>
-<body>
+<body data-theme="light">
 
-<div id="mainSidebar" class="sidebar">
-    <div class="side-header">
+<div id="sideNav" class="sidebar">
+    <div style="padding: 40px 24px 20px; background: var(--primary); color: white;">
         <h2 style="margin:0">MONTE SJDM</h2>
-        <p style="margin:4px 0; font-size:12px; opacity:0.8">Version 9.0 Pro | Academic Project</p>
+        <p style="margin:4px 0; font-size:12px; opacity:0.8">Commuter Assistant</p>
     </div>
-    <div class="nav-link" onclick="toggleTheme()">
-        <span class="material-icons-round">palette</span>
-        <div><b>Display Theme</b><br><small>Switch Dark/Light Mode</small></div>
+    <div style="padding: 10px 0;">
+        <div class="result-item" onclick="toggleTheme()">
+            <span class="material-icons-round">dark_mode</span><span>Toggle Map & UI Dark Mode</span>
+        </div>
+        <div class="result-item" onclick="openPanel('hotlinePanel')">
+            <span class="material-icons-round" style="color:var(--error)">emergency</span><span>LGU Hotlines</span>
+        </div>
     </div>
-    <div class="nav-link" onclick="toggleOverlay('hotlinePanel', true)">
-        <span class="material-icons-round" style="color:var(--error)">campaign</span>
-        <div><b>Emergency Directory</b><br><small>LGU Official Hotlines</small></div>
-    </div>
-    <div class="nav-link" onclick="toggleOverlay('aboutPanel', true)">
-        <span class="material-icons-round" style="color:var(--accent)">info</span>
-        <div><b>Project Information</b><br><small>Developer & Research Goals</small></div>
-    </div>
-    <div style="padding: 24px; margin-top: auto;">
-        <p style="font-size:10px; color:var(--secondary); text-align:center;">CSJDM National Science High School<br>© 2026 Student Researcher</p>
-    </div>
+    <div style="padding: 24px;"><button class="btn-main" onclick="closeNav()" style="background:var(--landmark-bg); color:var(--text)">Close Menu</button></div>
 </div>
 
 <div id="hotlinePanel" class="info-panel">
-    <div style="padding: 24px; background: var(--card); border-bottom: 1px solid var(--divider); display: flex; align-items: center; gap: 16px;">
-        <span class="material-icons-round" onclick="toggleOverlay('hotlinePanel', false)">arrow_back</span>
-        <h2 style="margin:0">LGU Directory</h2>
+    <div style="padding: 24px; display: flex; align-items: center; gap: 15px;" onclick="closePanel('hotlinePanel')">
+        <span class="material-icons-round">arrow_back</span><h2 style="margin:0">LGU Directory</h2>
     </div>
-    <div class="panel-content">
-        <div style="margin-bottom:20px; padding:12px; background: #fffde7; border-radius:12px; font-size:12px; border:1px solid #fbc02d; color:#827717;">
-            <b>Official Note:</b> These numbers are verified from the 2025/2026 CSJDM LGU City Hall Directory.
-        </div>
-        
-        <small style="font-weight:bold; color:var(--secondary); margin-left:8px;">EMERGENCY SERVICES</small>
-        <a href="tel:09164320401" class="hotline-item"><div>PNP (City Police)</div><div class="num-tag">0916 432 0401</div></a>
-        <a href="tel:09323732444" class="hotline-item"><div>Fire Dept (BFP)</div><div class="num-tag">0932 373 2444</div></a>
-        <a href="tel:09366000119" class="hotline-item"><div>Rescue (CDRRMO)</div><div class="num-tag">0936 600 0119</div></a>
-        
-        <small style="font-weight:bold; color:var(--secondary); margin-left:8px; margin-top:16px; display:block;">TRANSIT & TRAFFIC</small>
-        <a href="tel:0443063345" class="hotline-item"><div>Tricycle Regulatory (TRU)</div><div class="num-tag">(044) 306 3345</div></a>
-        <a href="tel:09366310799" class="hotline-item"><div>Traffic Mgmt (CTM-SCOO)</div><div class="num-tag">0936 631 0799</div></a>
-        
-        <small style="font-weight:bold; color:var(--secondary); margin-left:8px; margin-top:16px; display:block;">HEALTH</small>
-        <a href="tel:09569869417" class="hotline-item"><div>City Health (CHO)</div><div class="num-tag">0956 986 9417</div></a>
+    <div style="padding: 24px;">
+        <p style="font-size: 12px; opacity: 0.6;">Official San Jose del Monte Directory (2025-2026)</p>
+        <div class="result-item"><span class="material-icons-round">local_police</span><span>Police: 0916-432-0401</span></div>
+        <div class="result-item"><span class="material-icons-round">fire_truck</span><span>Fire: 0932-373-2444</span></div>
+        <div class="result-item"><span class="material-icons-round">traffic</span><span>Traffic (CTM): 0936-631-0799</span></div>
     </div>
 </div>
 
-<div id="aboutPanel" class="info-panel">
-    <div style="padding: 24px; display: flex; align-items: center; gap: 16px;">
-        <span class="material-icons-round" onclick="toggleOverlay('aboutPanel', false)">arrow_back</span>
-        <h2 style="margin:0">About MONTE</h2>
+<div class="search-card">
+    <div class="search-row">
+        <span class="material-icons-round" onclick="openNav()" style="cursor:pointer; padding-right:8px">menu</span>
+        <input type="text" id="startLoc" placeholder="Search origin (Terminal or Landmark)..." oninput="handleHybridSearch(this)">
     </div>
-    <div class="panel-content">
-        <h3>Mobility & Optimized Network for Transit Efficiency</h3>
-        <p>This application is part of a student research project at <b>City of San Jose del Monte National Science High School</b>.</p>
-        <p><b>Objective:</b> To analyze traffic volume and provide commuters with data-driven fare estimates and terminal locating services.</p>
-        <div style="padding:16px; border-left:4px solid var(--primary); background:var(--landmark-bg);">
-            "Quantifying Traffic Congestion and Enhancing Commuter Efficiency through Geographic Information Systems."
-        </div>
+    <div style="height:1px; background:var(--divider); margin:2px 40px;"></div>
+    <div class="search-row">
+        <span class="material-icons-round" style="color:var(--primary); padding-right:8px">place</span>
+        <input type="text" id="endLoc" placeholder="Search destination..." oninput="handleHybridSearch(this)">
+    </div>
+    
+    <div id="dropdown" class="results-dropdown"></div>
+    <button class="btn-main" onclick="runRoute()">GET FARE & ROUTE</button>
+</div>
+
+<div class="modal-overlay" id="snapModal">
+    <div class="confirm-box">
+        <span class="material-icons-round" style="font-size: 48px; color: var(--primary);">hail</span>
+        <h3>Nearby Hub Found</h3>
+        <p id="snapMsg" style="font-size: 14px; opacity: 0.8;"></p>
+        <button class="btn-main" id="confirmSnap">YES, USE THIS HUB</button>
+        <button class="btn-main" onclick="closeSnap()" style="background:none; color:var(--text);">CANCEL</button>
     </div>
 </div>
 
-<div class="ui-container">
-    <div class="glass-card">
-        <div class="search-group">
-            <div class="search-row">
-                <span class="material-icons-round" onclick="toggleSidebar(true)" style="cursor:pointer">menu</span>
-                <input type="text" id="startInp" placeholder="Enter origin..." onkeydown="handleEnter(event, 'startInp')">
-                <span class="material-icons-round" style="color:var(--primary); cursor:pointer" onclick="handleSearch('startInp')">search</span>
-            </div>
-            <div class="search-row">
-                <span class="material-icons-round" style="color:var(--primary)">near_me</span>
-                <input type="text" id="endInp" placeholder="Enter destination..." onkeydown="handleEnter(event, 'endInp')">
-                <span class="material-icons-round" style="color:var(--primary); cursor:pointer" onclick="handleSearch('endInp')">search</span>
-            </div>
-            <button class="btn-action" onclick="calculateRoute()">
-                <span class="material-icons-round">directions</span> PLAN YOUR COMMUTE
-            </button>
-        </div>
+<div id="fare-panel">
+    <div style="width:40px; height:4px; background:var(--divider); margin:0 auto 20px; border-radius:2px;"></div>
+    <div style="display:flex; justify-content:space-between; align-items:baseline;">
+        <h3 id="vType" style="margin:0; color:var(--primary)">Tricycle</h3>
+        <span id="resDist" style="font-weight:bold;">0.0 km</span>
     </div>
-</div>
-
-<div class="dimmer" id="screenDim"></div>
-<div class="confirm-modal" id="confirmModal">
-    <h3 style="margin-top:0">Nearest Hub Found</h3>
-    <p id="modalMsg" style="font-size:14px; line-height:1.5; opacity:0.8;"></p>
-    <div style="display:flex; gap:12px; margin-top:24px;">
-        <button class="btn-action" id="btnAccept">CONFIRM</button>
-        <button class="btn-action" style="background:var(--landmark-bg); color:var(--text); flex:0.4" onclick="closeModal()">NO</button>
+    <div style="background:var(--landmark-bg); padding:15px; border-radius:12px; margin:15px 0; text-align:center;">
+        <div id="resFare" style="font-size: 32px; font-weight:bold;">₱0.00</div>
+        <div id="resTime" style="font-size: 12px; font-weight:bold; color:var(--accent);">~0 mins travel</div>
     </div>
-</div>
-
-<div id="fare-dashboard">
-    <div style="width:40px; height:5px; background:var(--divider); margin: 0 auto 15px; border-radius:10px;"></div>
-    <div style="display:flex; justify-content:space-between; align-items:center;">
-        <span id="vehicleType" style="color:var(--primary); font-weight:bold; font-size:18px;">Transit Service</span>
-        <span id="finalDist" style="font-family:'JetBrains Mono'; font-weight:bold;">0.00 km</span>
-    </div>
-    <div style="margin:20px 0; display:flex; gap:10px;">
-        <div style="flex:1; background:var(--landmark-bg); padding:15px; border-radius:16px; text-align:center;">
-            <small style="display:block; margin-bottom:5px; opacity:0.6;">EST. FARE</small>
-            <b id="finalFare" style="font-size:24px;">₱0.00</b>
-        </div>
-        <div style="flex:1; background:var(--landmark-bg); padding:15px; border-radius:16px; text-align:center;">
-            <small style="display:block; margin-bottom:5px; opacity:0.6;">TIME</small>
-            <b id="finalTime" style="font-size:24px;">-- mins</b>
-        </div>
-    </div>
-    <button class="btn-action" style="background:var(--landmark-bg); color:var(--text)" onclick="resetApp()">NEW SEARCH</button>
+    <button class="btn-main" onclick="resetApp()" style="background:var(--divider); color:var(--text)">CLEAR</button>
 </div>
 
 <div id="map"></div>
@@ -212,110 +138,135 @@
 <script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
 
 <script>
-    // Initialize Map
+    // Map setup with two tile layers
     const map = L.map('map', { zoomControl: false }).setView([14.81, 121.05], 14);
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+    
+    const lightTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(map);
+    const darkTiles = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png');
 
-    let terminalData = [], activeRoute, currentTargetId, selectedPoint;
+    let terminals = [], routing, pendingTarget, nearestPoint;
 
-    // Load Terminal Data
-    fetch('Tricycle Terminal Points.geojson')
-        .then(r => r.json())
-        .then(data => {
-            L.geoJSON(data, {
-                onEachFeature: (f, l) => {
-                    terminalData.push({
-                        name: f.properties.name || f.properties.Name,
-                        coord: l.getLatLng(),
-                        v: f.properties.vehicle || "Tricycle"
-                    });
-                },
-                pointToLayer: (f, latlng) => L.circleMarker(latlng, { radius: 5, color: '#1a73e8' })
-            }).addTo(map);
-        });
-
-    // Core Functional Logic
-    async function handleSearch(id) {
-        const query = document.getElementById(id).value;
-        if (query.length < 3) return;
-        currentTargetId = id;
-
-        try {
-            const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}+San+Jose+del+Monte&limit=1`);
-            const data = await response.json();
-            
-            if (data.length > 0) {
-                const searchCoords = L.latLng(data[0].lat, data[0].lon);
-                const nearest = findNearestTerminal(searchCoords);
-                
-                selectedPoint = nearest;
-                document.getElementById('modalMsg').innerHTML = `We found "<b>${data[0].display_name.split(',')[0]}</b>".<br><br>The nearest official terminal is <b>${nearest.name}</b>. Would you like to use this for your route?`;
-                
-                openModal();
-                map.flyTo(searchCoords, 16);
-            } else {
-                alert("Location not found in SJDM. Please try a different landmark.");
+    // Load GeoJSON and populate Autocomplete
+    fetch('Tricycle Terminal Points.geojson').then(r => r.json()).then(data => {
+        L.geoJSON(data, {
+            onEachFeature: (f, l) => {
+                terminals.push({ 
+                    name: f.properties.name || f.properties.Name, 
+                    latlng: l.getLatLng(),
+                    type: 'terminal',
+                    v: f.properties.vehicle || "Tricycle"
+                });
             }
-        } catch(e) { console.error(e); }
-    }
+        }).addTo(map);
+    });
 
-    function findNearestTerminal(target) {
-        let nearest = terminalData[0], min = Infinity;
-        terminalData.forEach(t => {
-            const d = target.distanceTo(t.coord);
-            if (d < min) { min = d; nearest = t; }
-        });
-        return nearest;
-    }
+    async function handleHybridSearch(el) {
+        const query = el.value.trim().toLowerCase();
+        const dropdown = document.getElementById('dropdown');
+        pendingTarget = el.id;
+        
+        dropdown.innerHTML = '';
+        if (query.length < 2) { dropdown.style.display = 'none'; return; }
+        dropdown.style.display = 'block';
 
-    function calculateRoute() {
-        const start = document.getElementById('startInp').value;
-        const end = document.getElementById('endInp').value;
-        let p1, p2, type;
-
-        terminalData.forEach(t => {
-            if (t.name === start) { p1 = t.coord; type = t.v; }
-            if (t.name === end) p2 = t.coord;
+        // 1. Filter Terminals (From GeoJSON)
+        const matchedTerms = terminals.filter(t => t.name.toLowerCase().includes(query));
+        matchedTerms.forEach(t => {
+            const item = createItem(t.name, 'electric_rickshaw', '#1a73e8', () => selectTerminal(t));
+            dropdown.appendChild(item);
         });
 
-        if (p1 && p2) {
-            if (activeRoute) map.removeControl(activeRoute);
-            activeRoute = L.Routing.control({
-                waypoints: [p1, p2],
-                createMarker: () => null,
-                lineOptions: { styles: [{ color: '#1a73e8', weight: 7, opacity: 0.8 }] }
-            }).on('routesfound', e => {
-                const summary = e.routes[0].summary;
-                const km = summary.totalDistance / 1000;
-                
-                // Fare Logic based on Research Data
-                let fare = (type === "Modern PUV") ? 15 + ((km-4)*2) : (km <= 2 ? 15 : 15 + ((km-2)*5));
-                
-                document.getElementById('finalDist').innerText = km.toFixed(2) + " km";
-                document.getElementById('finalFare').innerText = "₱" + Math.ceil(fare);
-                document.getElementById('finalTime').innerText = Math.round(summary.totalTime / 60) + "m";
-                document.getElementById('vehicleType').innerText = type + " Route";
-                document.getElementById('fare-dashboard').style.bottom = "0";
-                map.fitBounds(L.latLngBounds(p1, p2), { padding: [100, 100] });
-            }).addTo(map);
-        } else {
-            alert("Please search and confirm both points first!");
+        // 2. Geocoding Landmarks (OSM)
+        if (query.length > 3) {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${query}+San+Jose+del+Monte&limit=3`);
+            const data = await res.json();
+            data.forEach(place => {
+                const shortName = place.display_name.split(',')[0];
+                const item = createItem(shortName, 'location_city', '#f57c00', () => selectLandmark(place));
+                dropdown.appendChild(item);
+            });
         }
     }
 
-    // UI Helpers
-    function handleEnter(e, id) { if(e.key === 'Enter') handleSearch(id); }
-    function toggleSidebar(open) { document.getElementById("mainSidebar").style.width = open ? "300px" : "0"; }
-    function toggleOverlay(id, open) { document.getElementById(id).style.display = open ? "flex" : "none"; toggleSidebar(false); }
-    function openModal() { document.getElementById('confirmModal').style.display = 'block'; document.getElementById('screenDim').style.display = 'block'; }
-    function closeModal() { document.getElementById('confirmModal').style.display = 'none'; document.getElementById('screenDim').style.display = 'none'; }
-    function resetApp() { document.getElementById('fare-dashboard').style.bottom = "-100%"; if(activeRoute) map.removeControl(activeRoute); }
-    function toggleTheme() { document.body.dataset.theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark'; }
+    function createItem(text, icon, color, action) {
+        const div = document.createElement('div');
+        div.className = 'result-item';
+        div.innerHTML = `<span class="material-icons-round" style="color:${color}">${icon}</span> <span>${text}</span>`;
+        div.onclick = action;
+        return div;
+    }
 
-    document.getElementById('btnAccept').onclick = () => {
-        document.getElementById(currentTargetId).value = selectedPoint.name;
-        closeModal();
+    function selectTerminal(t) {
+        document.getElementById(pendingTarget).value = t.name;
+        document.getElementById('dropdown').style.display = 'none';
+    }
+
+    function selectLandmark(place) {
+        const pos = L.latLng(place.lat, place.lon);
+        nearestPoint = findNearest(pos);
+        
+        document.getElementById('snapMsg').innerHTML = `<b>${place.display_name.split(',')[0]}</b> is closest to <b>${nearestPoint.name}</b>. Use this terminal?`;
+        document.getElementById('snapModal').style.display = 'flex';
+        map.flyTo(pos, 16);
+    }
+
+    function findNearest(latlng) {
+        let closest = terminals[0], minDist = Infinity;
+        terminals.forEach(t => {
+            const d = latlng.distanceTo(t.latlng);
+            if(d < minDist) { minDist = d; closest = t; }
+        });
+        return closest;
+    }
+
+    document.getElementById('confirmSnap').onclick = () => {
+        document.getElementById(pendingTarget).value = nearestPoint.name;
+        closeSnap();
+        document.getElementById('dropdown').style.display = 'none';
     };
+
+    function runRoute() {
+        const s = document.getElementById('startLoc').value;
+        const e = document.getElementById('endLoc').value;
+        let p1, p2, v;
+        terminals.forEach(t => { 
+            if(t.name === s) { p1 = t.latlng; v = t.v; } 
+            if(t.name === e) p2 = t.latlng; 
+        });
+
+        if (p1 && p2) {
+            if (routing) map.removeControl(routing);
+            routing = L.Routing.control({
+                waypoints: [p1, p2], createMarker: () => null,
+                lineOptions: { styles: [{ color: '#1a73e8', weight: 7, opacity: 0.8 }] }
+            }).on('routesfound', ev => {
+                const route = ev.routes[0];
+                const d = route.summary.totalDistance / 1000;
+                let fare = (v === "Modern PUV") ? 15 + ((d-4)*2) : (d <= 2 ? 15 : 15 + ((d-2)*5));
+                
+                document.getElementById('resDist').innerText = d.toFixed(2) + " km";
+                document.getElementById('resFare').innerText = "₱" + Math.ceil(fare < 15 ? 15 : fare);
+                document.getElementById('resTime').innerText = `~${Math.round(route.summary.totalTime / 60)} mins travel`;
+                document.getElementById('vType').innerText = v + " Service";
+                document.getElementById('fare-panel').style.bottom = "0";
+                map.fitBounds(L.latLngBounds(p1, p2), { padding: [100, 100] });
+            }).addTo(map);
+        }
+    }
+
+    // UI Toggles
+    function toggleTheme() {
+        const isDark = document.body.dataset.theme === 'dark';
+        document.body.dataset.theme = isDark ? 'light' : 'dark';
+        if (!isDark) { darkTiles.addTo(map); map.removeLayer(lightTiles); } 
+        else { lightTiles.addTo(map); map.removeLayer(darkTiles); }
+    }
+    function openNav() { document.getElementById("sideNav").style.width = "280px"; }
+    function closeNav() { document.getElementById("sideNav").style.width = "0"; }
+    function openPanel(id) { document.getElementById(id).style.display = 'flex'; closeNav(); }
+    function closePanel(id) { document.getElementById(id).style.display = 'none'; }
+    function closeSnap() { document.getElementById('snapModal').style.display = 'none'; }
+    function resetApp() { document.getElementById('fare-panel').style.bottom = "-100%"; if(routing) map.removeControl(routing); }
 </script>
 </body>
 </html>
